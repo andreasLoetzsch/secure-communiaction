@@ -1,5 +1,39 @@
 const User = require('../models/userCreate')
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const express = require('express')
+const app = express()
+require('dotenv').config();
+
+function generateAccessToken (user){
+    return jwt.sign(user, process.env.ACCESS_TOKEN_KEY, {expiresIn: '15m'})
+}
+function generateRefreshToken (user) {
+    return jwt.sign(user, process.env.REFRESH_TOKEN_KEY, {expiresIn: '7d'})
+}
+
+const giveUserJwt = async (req, res) =>{
+     const {username, password} = req.body
+     const authResult =  userController.login(username, password)
+     if(authResult.status === 200){
+        const accessToken = generateAccessToken(authResult.user)
+        const refreshToken = generateRefreshToken(authResult.user)
+
+        res.cookie('accessToken', generateAccessToken, {
+            httpOnly: true,
+            secure: true, 
+            sameSite: 'Strict'
+        })
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'Strict'
+        })
+        res.status(200).json({message: 'Login successful'})
+     }else{
+        res.status(authResult.status).json({message: authResult.message})
+     }
+}
 
 const registerUser = async (req, res) =>{
     const {username, password} = req.body
@@ -34,11 +68,11 @@ const loginUser = async (req, res) => {
         {
             res.json({success: false, message: 'Invalid credentials'})
         }
-        res.json({success: true, message: 'LOGGED_IN', user})
+        res.json({success: true, message: 'LOGGED_IN'})
     }
     catch(error){
        res.json({succes: false, message: 'ERROR_VERIFYING'})
     }
 }
 
-module.exports = {registerUser, loginUser}
+module.exports = {registerUser, loginUser, giveUserJwt}
